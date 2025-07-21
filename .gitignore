@@ -1,2 +1,4 @@
 credentials.py
 mainLocal.py
+__pycache__/
+*.pyc
