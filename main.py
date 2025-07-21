@@ -25,7 +25,7 @@ def fetch_chunk(offset):
 def cargar_jugadores():
     global all_players
     all_players = []
-    offsets = range(0, 5000, 100)
+    offsets = range(0, 6000, 100)
 
     with ThreadPoolExecutor(max_workers=10) as executor:
         results = executor.map(fetch_chunk, offsets)
@@ -40,8 +40,7 @@ def cargar_jugadores():
 async def rank(ctx, pais: str = None):
 
     global all_players
-    if not all_players:
-        cargar_jugadores()
+    cargar_jugadores()
 
     try:
         players = all_players
@@ -68,7 +67,7 @@ async def rank(ctx, pais: str = None):
         else:
             pais_display = "🌐 GLOBAL"
 
-        msg = f"**Ranking Overall 🏆{pais_display}**:\n"
+        msg = f"**Ranking Overall 🏆 {pais_display}**:\n"
 
         for i, p in enumerate(players[:20], 1):  # solo los primeros 20
             username = p.get("nick", "¿Sin nombre?")
