@@ -1,7 +1,7 @@
 import discord
 from discord.ext import commands
 import requests
-import credentials
+import os
 from concurrent.futures import ThreadPoolExecutor
 
 intents = discord.Intents.default()
@@ -16,7 +16,7 @@ all_players = []
 
 def fetch_chunk(offset):
     url = f"https://www.geoguessr.com/api/v4/ranked-system/ratings?offset={offset}&limit=100"
-    headers = {"cookie": f"_ncfa={credentials.NCFA_COOKIE}"}
+    headers = {"cookie": f"_ncfa={os.getenv('NCFA_COOKIE')}"}
     r = requests.get(url, headers=headers)
     if r.status_code != 200:
         return []
@@ -95,4 +95,4 @@ async def ranking(ctx, pais: str = None):
         print("Error:", e)
         await ctx.send("❌ Error al procesar la solicitud.")
 
-bot.run(credentials.TOKEN)
+bot.run(os.getenv("TOKEN"))
