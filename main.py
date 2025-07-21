@@ -37,7 +37,7 @@ def cargar_jugadores():
 
 #Display ranking global o por pais
 @bot.command()
-async def ranking(ctx, pais: str = None):
+async def rank(ctx, pais: str = None):
 
     global all_players
     if not all_players:
