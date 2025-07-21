@@ -3,16 +3,55 @@ from discord.ext import commands
 import requests
 import os
 from concurrent.futures import ThreadPoolExecutor
+import psycopg2
+from translations import translations
+
 
 intents = discord.Intents.default()
 intents.message_content = True
 
 bot = commands.Bot(command_prefix='/', intents=intents)
 
+def t(server_id, key):
+    lang = get_language(server_id) or "es"  # función que trae el idioma desde la DB
+    return translations.get(lang, {}).get(key, f"[{key}]")
+
+
+def set_language(server_id, lang):
+    conn = psycopg2.connect(os.environ["DATABASE_URL"])
+    cur = conn.cursor()
+    cur.execute("""
+        INSERT INTO server_config (server_id, language)
+        VALUES (%s, %s)
+        ON CONFLICT (server_id) DO UPDATE SET language = EXCLUDED.language;
+    """, (str(server_id), lang))
+    conn.commit()
+    cur.close()
+    conn.close()
+
+def get_language(server_id):
+    conn = psycopg2.connect(os.environ["DATABASE_URL"])
+    cur = conn.cursor()
+    cur.execute("SELECT language FROM server_config WHERE server_id = %s;", (str(server_id),))
+    result = cur.fetchone()
+    cur.close()
+    conn.close()
+    return result[0] if result else "es"
+
+@bot.command()
+@commands.has_permissions(administrator=True)
+async def setlanguage(ctx, lang: str):
+    if lang not in ["es", "en"]:
+        await ctx.send(t(ctx.guild.id, "AVAILABLE_LANGUAGES"))
+        return
+
+    set_language(ctx.guild.id, lang)
+    await ctx.send(t(ctx.guild.id, "LANGUAGE_SET").format(lang=lang))
+
+
 all_players = []
 
-#Ingesta de jugadores del TOP (Primeros 5000)
-
+#Ingesta de jugadores del TOP (Primeros 6000)
 
 def fetch_chunk(offset):
     url = f"https://www.geoguessr.com/api/v4/ranked-system/ratings?offset={offset}&limit=100"
@@ -37,7 +76,7 @@ def cargar_jugadores():
 
 #Display ranking global o por pais
 @bot.command()
-async def rank(ctx, pais: str = None):
+async def ranking(ctx, pais: str = None):
 
     global all_players
     cargar_jugadores()
@@ -46,7 +85,7 @@ async def rank(ctx, pais: str = None):
         players = all_players
 
         if not players:
-            await ctx.send("No se encontraron jugadores.")
+            await ctx.send(t(ctx.guild.id, "RANK_NOT_FOUND"))
             return
 
         # Si se pasa un país, filtramos
@@ -55,10 +94,8 @@ async def rank(ctx, pais: str = None):
             players = [p for p in players if p.get("countryCode", "").lower() == pais]
 
         if not players:
-            await ctx.send(f"No se encontraron jugadores para `{pais.upper()}`.")
+            await ctx.send(t(ctx.guild.id, "RANK_NO_PLAYERS").format(pais.upper()))
             return
-
-        #msg = f"🌍 **Top 20 GeoGuessr 🏆 {'Global' if not pais else pais.upper()}**:\n"
 
         if pais:
             flag_code = pais.lower() if pais.lower() != "zz" else "white"
@@ -67,7 +104,7 @@ async def rank(ctx, pais: str = None):
         else:
             pais_display = "🌐 GLOBAL"
 
-        msg = f"**Ranking Overall 🏆 {pais_display}**:\n"
+        msg = f"**Ranking Overall 🏆{pais_display}**:\n"
 
         for i, p in enumerate(players[:20], 1):  # solo los primeros 20
             username = p.get("nick", "¿Sin nombre?")
@@ -92,6 +129,6 @@ async def rank(ctx, pais: str = None):
 
     except Exception as e:
         print("Error:", e)
-        await ctx.send("❌ Error al procesar la solicitud.")
+        await ctx.send("❌ Error.")
 
-bot.run(os.getenv("TOKEN"))
+bot.run(os.environ["TOKEN"])
